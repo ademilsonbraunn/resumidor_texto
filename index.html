@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resumo — Resumidor de artigos com IA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Instrument+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="noise"></div>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">resumo<span class="logo-dot">·</span></div>
+      <div class="header-right">
+        <button class="history-toggle" id="historyToggle" aria-label="Ver histórico">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          histórico <span class="history-count" id="historyCount" style="display:none"></span>
+        </button>
+        <button class="key-btn" id="keyBtn" title="Configurar chave de API">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><line x1="19" y1="4" x2="11.2" y2="11.8"/><line x1="17" y1="6" x2="19" y2="8"/></svg>
+          API key
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- API Key Modal -->
+  <div class="modal-backdrop" id="keyModal">
+    <div class="modal">
+      <h2 class="modal-title">Chave de API</h2>
+      <p class="modal-desc">Insira sua chave da Anthropic para usar o resumidor. Ela fica salva só no seu navegador.</p>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." class="key-input" autocomplete="off">
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeKeyModal()">cancelar</button>
+        <button class="btn-primary" onclick="saveKey()">salvar</button>
+      </div>
+      <p class="modal-hint">Obtenha sua chave em <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></p>
+    </div>
+  </div>
+
+  <!-- History Panel -->
+  <div class="history-panel" id="historyPanel">
+    <div class="history-header">
+      <span class="history-title">Histórico</span>
+      <button class="clear-btn" onclick="clearHistory()">limpar tudo</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+    <div class="history-empty" id="historyEmpty">Nenhum resumo ainda.</div>
+  </div>
+
+  <main>
+    <div class="hero">
+      <h1 class="hero-title">Leia <em>menos,</em><br>entenda <em>mais.</em></h1>
+      <p class="hero-sub">Cole um texto ou artigo e a IA extrai o que importa.</p>
+    </div>
+
+    <div class="input-card" id="inputCard">
+      <div class="mode-tabs" role="tablist">
+        <button class="tab active" role="tab" aria-selected="true" data-mode="text" onclick="switchMode('text')">texto</button>
+        <button class="tab" role="tab" aria-selected="false" data-mode="url" onclick="switchMode('url')">URL</button>
+      </div>
+
+      <div id="textMode">
+        <textarea
+          id="textInput"
+          class="text-input"
+          placeholder="Cole aqui o artigo, notícia ou qualquer texto que queira resumir..."
+          aria-label="Texto para resumir"
+          rows="7"
+        ></textarea>
+        <div class="char-count" id="charCount">0 caracteres</div>
+      </div>
+
+      <div id="urlMode" style="display:none">
+        <input type="url" id="urlInput" class="url-input" placeholder="https://..." aria-label="URL do artigo">
+        <p class="url-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          A URL é usada como referência. Para melhor resultado, copie e cole o texto do artigo diretamente.
+        </p>
+      </div>
+
+      <div class="options-row">
+        <div class="option-group">
+          <label class="option-label" for="styleSelect">estilo</label>
+          <select id="styleSelect" aria-label="Estilo do resumo">
+            <option value="bullets">tópicos</option>
+            <option value="paragraph">parágrafo</option>
+            <option value="tldr">TL;DR</option>
+            <option value="executive">executivo</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label class="option-label" for="lengthSelect">tamanho</label>
+          <select id="lengthSelect" aria-label="Tamanho do resumo">
+            <option value="short">curto</option>
+            <option value="medium" selected>médio</option>
+            <option value="long">detalhado</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label class="option-label" for="langSelect">idioma</label>
+          <select id="langSelect" aria-label="Idioma do resumo">
+            <option value="pt" selected>português</option>
+            <option value="en">inglês</option>
+            <option value="es">espanhol</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="summarize-btn" id="summarizeBtn" onclick="summarize()">
+        <span id="btnText">resumir</span>
+        <svg id="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <span class="spinner" id="spinner" style="display:none" aria-label="Carregando"></span>
+      </button>
+    </div>
+
+    <!-- Result -->
+    <div class="result-card" id="resultCard" style="display:none" aria-live="polite">
+      <div class="result-header">
+        <div class="result-meta">
+          <span class="result-badge" id="resultBadge">tópicos</span>
+          <span class="result-time" id="resultTime"></span>
+        </div>
+        <div class="result-actions">
+          <button class="action-btn" onclick="copyResult()" title="Copiar resumo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            copiar
+          </button>
+          <button class="action-btn" onclick="newSummary()" title="Novo resumo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            novo
+          </button>
+        </div>
+      </div>
+      <div class="result-body" id="resultBody"></div>
+      <div class="result-footer">
+        <span class="result-words" id="resultWords"></span>
+        <button class="feedback-btn liked" onclick="feedback('like')" title="Bom resumo">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+        </button>
+        <button class="feedback-btn" onclick="feedback('dislike')" title="Ruim">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-card" id="errorCard" style="display:none" role="alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errorMsg"></span>
+    </div>
+  </main>
+
+  <footer>
+    <p>feito com <a href="https://anthropic.com" target="_blank" rel="noopener">Claude API</a> · projeto de portfólio</p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
